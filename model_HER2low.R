@@ -18,37 +18,8 @@ library(dplyr)
 library(shapr)
 source('tree_func.R')
 
-# Rimuovere recurrence_phenotype e tentare visceral
-
 ## Load data
 data <- read.csv2("data/cleaned_imputed_MCA_data_filtered.csv")
-
-# ## eliminate previous Switch
-# data <- data %>% select(-starts_with("Switch_"))
-# 
-# ## binarize age
-# data$Eta_anni_50plus <- ifelse(data$Eta_anni >= 50, 1, 0)
-# 
-# # creare nuovo target
-# data$Switch_HER2_low_gain <- ifelse(data$HER2_primitivo_low == 0 & data$HER2_metastasi_low == 1, 1, 0)
-# 
-# # remove conditional features
-# data <- data %>% select(-HER2_primitivo_low, -HER2_metastasi_low, -Eta_anni, -tempo_alla_biopsia)
-# 
-# # Keep only patients with HER2_primitivo_positivo == 0
-# ## TEST
-# 
-# # federica filter
-# columns_prefiltered_by_federica <- c(
-#   "ER_metastasi_ER.0", "ER_metastasi_ER.LOW",
-#   "ER_metastasi_ER.", "PgR_metastasi",
-#   "HER2_metastasi_negativo",
-#   "HER2_metastasi_positivo", "Fenotipo_metastasi_puro.TN",
-#   "Fenotipo_metastasi_ER.low", "Fenotipo_metastasi_ER.pos.HER2.",
-#   "Fenotipo_metastasi_HER2..any.ER", "Adiuvante_antiHER2"
-# )
-# data <- data %>% select(-all_of(columns_prefiltered_by_federica))
-
 
 ## Make factor
 data$Switch_HER2_low_gain <- data$Switch_HER2_low_gain %>% as.factor()
@@ -68,38 +39,6 @@ dev.off()
 boruta_filtered_vars <- getSelectedAttributes(boruta, withTentative = T)
 data <- data %>% select(all_of(boruta_filtered_vars), all_of(target_variable))
 
-# data %>% write.csv(file = "dataset.csv", row.names = F)
-
-## Variance Inflation Factor
-# alias <- alias( lm(formula_string, data = data) )
-# alias_data <- alias$Complete %>% row.names()
-# data <- data %>% select(-alias_data)
-# vif_model <- car::vif( lm(formula_string, data = data) )
-# vif_df <- data.frame(variable = names(vif_model), vif = vif_model)
-# vif_threshold <- 10
-# vif_predictors_to_eliminate <- vif_model[vif_model > vif_threshold] %>% names()
-# data <- data %>% select(-all_of(vif_predictors_to_eliminate))
-
-# pdf('HER2_low_target/preliminary_analysis/VIF_analysis.pdf')
-# ggplot(vif_df, aes(x = reorder(variable, vif), y = vif)) +
-#   geom_bar(stat = "identity", fill = "steelblue") +
-#   geom_hline(yintercept = vif_threshold, linetype = "dashed", size = 1.5) +
-#   labs(title = "VIF Values", y = "VIF Value", x = "Variables") +
-#   theme_minimal() +
-#   coord_flip()
-# dev.off()
-
-# Drop columns with low variance
-#NZV <- nearZeroVar(data, saveMetrics = TRUE)
-#nzv_predictors <- NZV[NZV[,"zeroVar"] + NZV[,"nzv"] > 0, ] %>% rownames()
-#data <- data %>% select(-all_of(nzv_predictors))
-
-## Modeling
-# trControl <- trainControl(method = "cv", number = 10)
-# 
-# # new formula creation
-# formula_string <- paste0(target_variable, " ~ ", paste0(boruta_filtered_vars, collapse = ' + ')) %>% as.formula()
-
 set.seed(101)
 partitions <- groupdata2::partition(data = data, p = 0.7, cat_col = target_variable)
 
@@ -114,11 +53,6 @@ data_train_under <- ovun.sample(formula = formula_string,
                                 N = 650, 
                                 seed = 101)$data
 
-# data_train_factor <- data_train %>% mutate_all(factor)
-# 
-# data.rose <- ROSE::ROSE(formula_string, data = data_train_factor, seed = 1, N = 400)$data
-# data.rose <- data.rose %>% lapply(., function(x) as.numeric(as.character(x))) %>% as.data.frame()
-# data.rose$Switch_HER2_low_gain <- data.rose$Switch_HER2_low_gain %>% as.factor()
 
 png('high_res/sampling_unbalanced_training_set.png', width = 6000, height = 6000, res = 1200)
 ggplot(data_train, aes(x = Switch_HER2_low_gain, fill = Switch_HER2_low_gain)) +
@@ -188,118 +122,9 @@ sjPlot::plot_model(glm_model,
                    title = paste0('Coefficients odds ratio related to: ', target_variable))
 dev.off()
 
-## SHAP
-library(shapr)
-
-# ind_x_explain <- 1:10
-# 
-# x_explain <- data_test[, predictor_variables]
-# 
-# # Specifying the phi_0, i.e. the expected prediction without any features
-# p <- mean(data_test$Switch_HER2_low_gain %>% as.numeric()) - 1
-# 
-# # Computing the actual Shapley values with kernelSHAP accounting for feature dependence using
-# # the empirical (conditional) distribution approach with bandwidth parameter sigma = 0.1 (default)
-# explanation <- explain(
-#   model = glm_model,
-#   x_explain = x_explain,
-#   x_train = data_train_under[ind_x_explain, predictor_variables],
-#   approach = "categorical",
-#   prediction_zero = p,
-#   #n_combinations = 2^(predictor_variables %>% length())
-#   n_combinations = 1000
-# )
-# 
-# # Printing the Shapley values for the test data.
-# 
-# explanation$shapley_values %>% writexl::write_xlsx("shapley_values_glm.xlsx")
-
-#load("shapley_full_explanation_GLM.RData")
-
-# Plot the resulting explanations for observations 1 and 6
-#plot(explanation, plot_phi0 = FALSE, index_x_test = c(1), index_x_explain = 1:5)
-
-#save(explanation, file = "shapley_full_explanation_GLM.RData")
-
 
 # XGBOOST -----------------------------------------------------------------
 library(xgboost)
-
-# trainMNX <- useful::build.x(formula_string, data_under, contrasts = FALSE)
-# trainMNY <- useful::build.y(formula_string, data_under)
-# trainMNX <- useful::build.x(formula_string, data_train_under, contrasts = FALSE)
-# trainMNY <- useful::build.y(formula_string, data_train_under)
-# testMNX <- useful::build.x(formula_string, data_test, contrasts = FALSE)
-# testMNY <- useful::build.y(formula_string, data_test)
-# 
-# grid_default <- expand.grid(
-#   nrounds = 100,
-#   max_depth = 6,
-#   eta = 0.3,
-#   gamma = 0,
-#   colsample_bytree = 1,
-#   min_child_weight = 1,
-#   subsample = 1
-# )
-# 
-# train_control <- caret::trainControl(
-#   method = "repeatedcv", # cross-validation
-#   number = 5, # with n folds 
-#   verboseIter = FALSE
-# )
-# 
-# xgb_base <- caret::train(
-#   x = trainMNX,
-#   y = trainMNY,
-#   trControl = train_control,
-#   tuneGrid = grid_default,
-#   method = "xgbTree",
-#   verbose = TRUE
-# )
-# 
-# print(xgb_base)
-# 
-# prediction <- predict(xgb_base, testMNX)
-# (confusion_matrix_her2_low_gain <- confusionMatrix(prediction, testMNY, positive = '1'))
-# 
-# ## tuning xgboost
-# tune_grid <- expand.grid(
-#   nrounds = 100,
-#   eta = c(0.2, 0.3, 0.4),
-#   max_depth = c(3, 5, 7),
-#   gamma = c(0),
-#   colsample_bytree = 1,
-#   min_child_weight = 1,
-#   subsample = 1
-# )
-# 
-# tune_control <- caret::trainControl(
-#   method = "cv", # cross-validation
-#   #number = 10, # with n folds 
-#   verboseIter = FALSE
-# )
-# 
-# xgb_tune <- caret::train(
-#   x = trainMNX,
-#   y = trainMNY,
-#   trControl = tune_control,
-#   tuneGrid = tune_grid,
-#   method = "xgbTree",
-#   verbose = TRUE,
-#   nthreads = 4
-# )
-# 
-# tunePred <- predict(xgb_tune, testMNX)
-# tunePred_probs <- predict(xgb_tune, testMNX, type = 'prob')
-# (confusion_matrix_her2_low_gain <- confusionMatrix(tunePred, testMNY, positive = '1'))
-# 
-# #xgb_shap <- xgb.plot.shap(data = testMNX, model = xgb_tune$finalModel, top_n = 20, plot = F)
-# 
-# library(shapviz)
-# 
-# xgb_shap <- shapviz::shapviz(xgb_tune$finalModel, X_pred = data.matrix(testMNX), X = testMNX)
-# sv_importance(xgb_shap, show_numbers = TRUE)
-# sv_waterfall(xgb_shap)
 
 ### tuning xgb
 library(mlr)
@@ -403,8 +228,3 @@ dev.off()
 png('low_res/shap_waterfall_xgboost.png', width = 3000, height = 6000, res = 300)
 sv_waterfall(xgb_shap)
 dev.off()
-
-
-save.image('MCA_model_xgboost_definitivo_paper20240415.RData')
-## Distance recurrence visceral: recidiva a distanza negli organi vitali
-## Primary Pheno Luminal: fenotipo malattia primitiva luminale sfavorisce lo switch
