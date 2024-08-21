@@ -69,11 +69,7 @@ data[] <- lapply(data, function(x) as.numeric(as.character(x)))
 data_preBoruta <- data
 
 data_preBoruta %>% write.csv("dataset_imbalanced.csv")
-
-
-## ubBalance
-#data_ubBalance <- ubBalance(X=data %>% select(-Switch_HER2_low_gain), Y=data$Switch_HER2_low_gain %>% as.factor(), type="ubTomek", perc=50,  method="percPos")
-#data <- data.frame(data_ubBalance$X, Switch_HER2_low_gain=data_ubBalance$Y)
+                 
 
 # Ensemble modeling -------------------------------------------------------
 
