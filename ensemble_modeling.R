@@ -106,11 +106,9 @@ data_train_under <- ovun.sample(formula = formula_string,
 
 # Prepare data
 y <- data_train_under$Switch_HER2_low_gain %>% as.character() %>% as.numeric()
-#y_ub <- as.numeric(as.character(data_ubBalance$Y))
 ytest <- data_test$Switch_HER2_low_gain
 
 x <- data_train_under %>% select(-target_variable)
-#x_ub <- data_ubBalance$X
 xtest <- data_test %>% select(-target_variable)
 
 ## Fit the ensemble model
