@@ -7,6 +7,8 @@ library(finalfit)
 library(naniar)
 library(GGally)
 library(missMDA)
+library(ggplot2)
+library(tidyr)
 
 data <- read.spss('data/DB_HER2low_20240312.sav', to.data.frame = TRUE, 
                   add.undeclared.levels = 'no', 
@@ -55,6 +57,12 @@ data_for_missing_plot <- data %>%
            'Age (cut-off 50 years)' = Age_50yrs_cutoff,
            'Lines therapies before biopsy (none or > 0)' = Lines_therapies_before_biopsy_none_versus_morethan0,
            'Lines therapies before biopsy CDK46i' = Lines_therapies_before_biopsy_CDK46i)
+
+# Calculate the proportion of missing values for each variable
+missing_data_prop <- data_for_missing_plot %>%
+  summarise(across(everything(), ~mean(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Missing_Proportion")
+
 missing_plot_custom <- missing_plot(data_for_missing_plot, use_labels = T, title = "") +
     theme_minimal() +
     scale_fill_gradient(low = "#56106e", high = "#fbbe22") +
@@ -84,3 +92,4 @@ data <- data %>% select(-all_of(recurrence_pheno_var))
 
 # output data
 write.csv2(data, 'data/cleaned_imputed_MCA_data_filtered.csv', quote = F, row.names = F)
+
